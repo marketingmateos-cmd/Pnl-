@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Journal — EUR/USD | FTMO Prep</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Inter', 'sans-serif'] },
+        colors: {
+          bg: '#0b0b0e',
+          card: '#16161d',
+          border: '#232330',
+          accent: '#8b5cf6',
+          accent2: '#a855f7',
+          good: '#22c55e',
+          bad: '#ef4444',
+        },
+        boxShadow: {
+          glow: '0 0 24px -6px rgba(139,92,246,0.45)',
+        }
+      }
+    }
+  }
+</script>
+<style>
+  html { scroll-behavior: smooth; }
+  body {
+    background: radial-gradient(circle at 20% 0%, rgba(139,92,246,0.08), transparent 40%),
+                radial-gradient(circle at 80% 10%, rgba(168,85,247,0.06), transparent 35%),
+                #0b0b0e;
+  }
+  * { transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: #0b0b0e; }
+  ::-webkit-scrollbar-thumb { background: #2a2a35; border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3a3a48; }
+  input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.6; cursor: pointer; }
+  input:focus, select:focus, textarea:focus, button:focus { outline: none; }
+  .fade-in { animation: fadeIn 300ms ease both; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+  .btn-accent {
+    background: linear-gradient(135deg, #8b5cf6, #a855f7);
+  }
+  .btn-accent:hover { filter: brightness(1.1); box-shadow: 0 0 24px -6px rgba(139,92,246,0.6); }
+  .btn-accent:active { transform: scale(0.98); }
+  table tbody tr:hover { background: rgba(139,92,246,0.05); }
+</style>
+</head>
+<body class="min-h-screen text-gray-200 font-sans antialiased">
+
+<div class="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+
+  <!-- Header -->
+  <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+        Trading <span class="text-accent2">Journal</span>
+      </h1>
+      <p class="text-sm text-gray-500 mt-1">Diario de P&amp;L diario · EUR/USD · Preparación cuenta FTMO</p>
+    </div>
+    <div id="ftmoBadgeWrap" class="hidden">
+      <span class="inline-flex items-center gap-2 rounded-full border border-bad/40 bg-bad/10 text-bad text-xs font-semibold px-3 py-1.5">
+        <span class="h-1.5 w-1.5 rounded-full bg-bad animate-pulse"></span>
+        Regla del 5% diario superada
+      </span>
+    </div>
+  </header>
+
+  <!-- Account setup -->
+  <section class="bg-card border border-border rounded-2xl p-5 sm:p-6">
+    <div class="flex flex-col lg:flex-row lg:items-end gap-5 lg:gap-8">
+      <div class="flex-1">
+        <label class="block text-xs font-medium text-gray-500 mb-1.5">Capital Inicial de la Cuenta ($)</label>
+        <div class="flex gap-2">
+          <input id="initialCapitalInput" type="number" min="0" step="0.01" placeholder="10000"
+            class="w-full bg-bg border border-border rounded-xl px-4 py-2.5 text-white text-sm placeholder-gray-600 focus:border-accent">
+          <button id="saveCapitalBtn" class="btn-accent text-white text-sm font-semibold px-5 py-2.5 rounded-xl whitespace-nowrap">
+            Guardar
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3 lg:gap-4 flex-1">
+        <div class="text-center sm:text-left">
+          <p class="text-[11px] uppercase tracking-wide text-gray-500">Capital Actual</p>
+          <p id="statCurrentCapital" class="text-lg sm:text-xl font-bold text-white mt-0.5">$0.00</p>
+        </div>
+        <div class="text-center sm:text-left">
+          <p class="text-[11px] uppercase tracking-wide text-gray-500">P&amp;L Total</p>
+          <p id="statTotalPnl" class="text-lg sm:text-xl font-bold mt-0.5">$0.00</p>
+        </div>
+        <div class="text-center sm:text-left">
+          <p class="text-[11px] uppercase tracking-wide text-gray-500">Rentabilidad Global</p>
+          <p id="statGlobalReturn" class="text-lg sm:text-xl font-bold mt-0.5">0.00%</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Dashboard cards -->
+  <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <div class="bg-card border border-border rounded-2xl p-4 sm:p-5">
+      <p class="text-[11px] uppercase tracking-wide text-gray-500">P&amp;L del Mes</p>
+      <p id="cardMonthPnl" class="text-xl sm:text-2xl font-bold text-white mt-1">$0.00</p>
+      <p id="cardMonthLabel" class="text-xs text-gray-600 mt-1">—</p>
+    </div>
+    <div class="bg-card border border-border rounded-2xl p-4 sm:p-5">
+      <p class="text-[11px] uppercase tracking-wide text-gray-500">Win Rate</p>
+      <p id="cardWinRate" class="text-xl sm:text-2xl font-bold text-accent2 mt-1">0%</p>
+      <p id="cardWinRateSub" class="text-xs text-gray-600 mt-1">0 / 0 días ganadores</p>
+    </div>
+    <div class="bg-card border border-border rounded-2xl p-4 sm:p-5">
+      <p class="text-[11px] uppercase tracking-wide text-gray-500">Profit Factor</p>
+      <p id="cardProfitFactor" class="text-xl sm:text-2xl font-bold text-accent2 mt-1">0.00</p>
+      <p class="text-xs text-gray-600 mt-1">Ganancias / Pérdidas</p>
+    </div>
+    <div id="cardFtmoAlert" class="bg-card border border-border rounded-2xl p-4 sm:p-5">
+      <p class="text-[11px] uppercase tracking-wide text-gray-500">Regla FTMO 5% diario</p>
+      <p id="cardFtmoStatus" class="text-xl sm:text-2xl font-bold text-good mt-1">OK</p>
+      <p id="cardFtmoSub" class="text-xs text-gray-600 mt-1">Sin violaciones registradas</p>
+    </div>
+  </section>
+
+  <!-- Equity chart -->
+  <section class="bg-card border border-border rounded-2xl p-5 sm:p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-sm font-semibold text-white">Curva de Capital</h2>
+      <span class="text-xs text-gray-500">Evolución por día registrado</span>
+    </div>
+    <div class="h-64 sm:h-72">
+      <canvas id="equityChart"></canvas>
+    </div>
+  </section>
+
+  <!-- Add entry form -->
+  <section class="bg-card border border-border rounded-2xl p-5 sm:p-6">
+    <h2 class="text-sm font-semibold text-white mb-4">Registrar Día de Trading</h2>
+    <form id="entryForm" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
+      <div class="lg:col-span-1">
+        <label class="block text-xs font-medium text-gray-500 mb-1.5">Fecha</label>
+        <input id="inputDate" type="date" required
+          class="w-full bg-bg border border-border rounded-xl px-3 py-2.5 text-white text-sm focus:border-accent">
+      </div>
+      <div class="lg:col-span-1">
+        <label class="block text-xs font-medium text-gray-500 mb-1.5">Par</label>
+        <input id="inputPair" type="text" value="EUR/USD" required
+          class="w-full bg-bg border border-border rounded-xl px-3 py-2.5 text-white text-sm placeholder-gray-600 focus:border-accent">
+      </div>
+      <div class="lg:col-span-1">
+        <label class="block text-xs font-medium text-gray-500 mb-1.5">P&amp;L ($)</label>
+        <input id="inputPnl" type="number" step="0.01" placeholder="150.00" required
+          class="w-full bg-bg border border-border rounded-xl px-3 py-2.5 text-white text-sm placeholder-gray-600 focus:border-accent">
+      </div>
+      <div class="lg:col-span-1">
+        <label class="block text-xs font-medium text-gray-500 mb-1.5">% sobre Capital</label>
+        <input id="inputPercent" type="text" disabled placeholder="Auto"
+          class="w-full bg-bg/50 border border-border rounded-xl px-3 py-2.5 text-gray-400 text-sm">
+      </div>
+      <div class="lg:col-span-1">
+        <label class="block text-xs font-medium text-gray-500 mb-1.5">Notas / Emociones</label>
+        <input id="inputNotes" type="text" placeholder="Ej: seguí el plan, sin FOMO"
+          class="w-full bg-bg border border-border rounded-xl px-3 py-2.5 text-white text-sm placeholder-gray-600 focus:border-accent">
+      </div>
+      <div class="lg:col-span-1 flex items-end">
+        <button type="submit" class="btn-accent w-full text-white text-sm font-semibold px-4 py-2.5 rounded-xl">
+          + Añadir Día
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <!-- History table -->
+  <section class="bg-card border border-border rounded-2xl p-5 sm:p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-sm font-semibold text-white">Historial de Días</h2>
+      <span id="historyCount" class="text-xs text-gray-500">0 registros</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left text-[11px] uppercase tracking-wide text-gray-500 border-b border-border">
+            <th class="py-2 pr-3 font-medium">Fecha</th>
+            <th class="py-2 pr-3 font-medium">Par</th>
+            <th class="py-2 pr-3 font-medium">P&amp;L ($)</th>
+            <th class="py-2 pr-3 font-medium">%</th>
+            <th class="py-2 pr-3 font-medium">Notas</th>
+            <th class="py-2 pr-3 font-medium"></th>
+            <th class="py-2 pl-3 font-medium text-right">Acción</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody" class="divide-y divide-border/60"></tbody>
+      </table>
+      <p id="emptyState" class="text-center text-gray-600 text-sm py-10">Aún no hay días registrados. Añade tu primer resultado arriba.</p>
+    </div>
+  </section>
+
+  <footer class="text-center text-xs text-gray-600 pt-2 pb-4">
+    Todos los datos se guardan localmente en tu navegador (localStorage). Nada se envía a ningún servidor.
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  const STORAGE_CAPITAL = 'tj_initialCapital';
+  const STORAGE_TRADES = 'tj_trades';
+  const FTMO_DAILY_LIMIT_PCT = 5;
+
+  const $ = (id) => document.getElementById(id);
+
+  let initialCapital = parseFloat(localStorage.getItem(STORAGE_CAPITAL)) || 0;
+  let trades = [];
+  try {
+    trades = JSON.parse(localStorage.getItem(STORAGE_TRADES)) || [];
+  } catch (e) {
+    trades = [];
+  }
+
+  const fmtUsd = (n) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fmtPct = (n) => `${n >= 0 ? '' : ''}${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+  const colorFor = (n) => (n > 0 ? 'text-good' : n < 0 ? 'text-bad' : 'text-gray-300');
+
+  let chart = null;
+
+  function currentCapital() {
+    return initialCapital + trades.reduce((sum, t) => sum + t.pnl, 0);
+  }
+
+  function totalPnl() {
+    return trades.reduce((sum, t) => sum + t.pnl, 0);
+  }
+
+  function globalReturnPct() {
+    if (initialCapital <= 0) return 0;
+    return (totalPnl() / initialCapital) * 100;
+  }
+
+  function recalcCapitalBefore() {
+    let running = initialCapital;
+    trades.forEach((t) => {
+      t.capitalBefore = running;
+      t.percent = running > 0 ? (t.pnl / running) * 100 : 0;
+      running += t.pnl;
+    });
+  }
+
+  function save() {
+    localStorage.setItem(STORAGE_CAPITAL, String(initialCapital));
+    localStorage.setItem(STORAGE_TRADES, JSON.stringify(trades));
+  }
+
+  function renderStats() {
+    $('statCurrentCapital').textContent = fmtUsd(currentCapital());
+    const pnl = totalPnl();
+    const pnlEl = $('statTotalPnl');
+    pnlEl.textContent = `${pnl >= 0 ? '+' : ''}${fmtUsd(pnl)}`;
+    pnlEl.className = `text-lg sm:text-xl font-bold mt-0.5 ${colorFor(pnl)}`;
+    const ret = globalReturnPct();
+    const retEl = $('statGlobalReturn');
+    retEl.textContent = `${ret >= 0 ? '+' : ''}${fmtPct(ret)}`;
+    retEl.className = `text-lg sm:text-xl font-bold mt-0.5 ${colorFor(ret)}`;
+  }
+
+  function renderDashboard() {
+    const now = new Date();
+    const monthTrades = trades.filter((t) => {
+      const d = new Date(t.date + 'T00:00:00');
+      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+    });
+    const monthPnl = monthTrades.reduce((s, t) => s + t.pnl, 0);
+    const monthPnlEl = $('cardMonthPnl');
+    monthPnlEl.textContent = `${monthPnl >= 0 ? '+' : ''}${fmtUsd(monthPnl)}`;
+    monthPnlEl.className = `text-xl sm:text-2xl font-bold mt-1 ${colorFor(monthPnl)}`;
+    const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    $('cardMonthLabel').textContent = `${monthNames[now.getMonth()]} ${now.getFullYear()} · ${monthTrades.length} días`;
+
+    const wins = trades.filter((t) => t.pnl > 0);
+    const losses = trades.filter((t) => t.pnl < 0);
+    const winRate = trades.length > 0 ? (wins.length / trades.length) * 100 : 0;
+    $('cardWinRate').textContent = `${winRate.toFixed(1)}%`;
+    $('cardWinRateSub').textContent = `${wins.length} / ${trades.length} días ganadores`;
+
+    const grossWin = wins.reduce((s, t) => s + t.pnl, 0);
+    const grossLoss = Math.abs(losses.reduce((s, t) => s + t.pnl, 0));
+    const profitFactor = grossLoss > 0 ? grossWin / grossLoss : (grossWin > 0 ? Infinity : 0);
+    $('cardProfitFactor').textContent = profitFactor === Infinity ? '∞' : profitFactor.toFixed(2);
+
+    const violations = trades.filter((t) => t.capitalBefore > 0 && t.pnl < 0 && Math.abs(t.pnl) > (FTMO_DAILY_LIMIT_PCT / 100) * t.capitalBefore);
+    const ftmoStatusEl = $('cardFtmoStatus');
+    const ftmoSubEl = $('cardFtmoSub');
+    const ftmoBadgeWrap = $('ftmoBadgeWrap');
+    if (violations.length > 0) {
+      ftmoStatusEl.textContent = 'RIESGO';
+      ftmoStatusEl.className = 'text-xl sm:text-2xl font-bold text-bad mt-1';
+      ftmoSubEl.textContent = `${violations.length} día(s) superaron el 5% de pérdida diaria`;
+      ftmoBadgeWrap.classList.remove('hidden');
+    } else {
+      ftmoStatusEl.textContent = 'OK';
+      ftmoStatusEl.className = 'text-xl sm:text-2xl font-bold text-good mt-1';
+      ftmoSubEl.textContent = 'Sin violaciones registradas';
+      ftmoBadgeWrap.classList.add('hidden');
+    }
+  }
+
+  function renderChart() {
+    if (typeof Chart === 'undefined') return;
+    const ctx = $('equityChart').getContext('2d');
+    let running = initialCapital;
+    const labels = ['Inicio'];
+    const data = [initialCapital];
+    trades.forEach((t) => {
+      running += t.pnl;
+      labels.push(t.date);
+      data.push(running);
+    });
+
+    if (chart) chart.destroy();
+    chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Capital',
+          data,
+          borderColor: '#a855f7',
+          backgroundColor: 'rgba(139,92,246,0.15)',
+          pointBackgroundColor: '#8b5cf6',
+          pointBorderColor: '#0b0b0e',
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          borderWidth: 2,
+          fill: true,
+          tension: 0.3,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#16161d',
+            borderColor: '#232330',
+            borderWidth: 1,
+            titleColor: '#e5e7eb',
+            bodyColor: '#e5e7eb',
+            callbacks: {
+              label: (ctx) => `Capital: ${fmtUsd(ctx.parsed.y)}`,
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: { color: '#1c1c24' },
+            ticks: { color: '#6b7280', maxTicksLimit: 8 }
+          },
+          y: {
+            grid: { color: '#1c1c24' },
+            ticks: { color: '#6b7280', callback: (v) => fmtUsd(v) }
+          }
+        }
+      }
+    });
+  }
+
+  function renderHistory() {
+    const body = $('historyBody');
+    body.innerHTML = '';
+    $('historyCount').textContent = `${trades.length} registro${trades.length === 1 ? '' : 's'}`;
+    $('emptyState').classList.toggle('hidden', trades.length > 0);
+
+    trades.slice().reverse().forEach((t) => {
+      const violated = t.capitalBefore > 0 && t.pnl < 0 && Math.abs(t.pnl) > (FTMO_DAILY_LIMIT_PCT / 100) * t.capitalBefore;
+      const tr = document.createElement('tr');
+      tr.className = 'fade-in';
+      tr.innerHTML = `
+        <td class="py-3 pr-3 text-gray-300 whitespace-nowrap">${t.date}</td>
+        <td class="py-3 pr-3 text-gray-300">${escapeHtml(t.pair)}</td>
+        <td class="py-3 pr-3 font-semibold ${colorFor(t.pnl)}">${t.pnl >= 0 ? '+' : ''}${fmtUsd(t.pnl)}</td>
+        <td class="py-3 pr-3 ${colorFor(t.pnl)}">${t.percent >= 0 ? '+' : ''}${fmtPct(t.percent)}</td>
+        <td class="py-3 pr-3 text-gray-500 max-w-xs truncate" title="${escapeHtml(t.notes || '')}">${escapeHtml(t.notes || '—')}</td>
+        <td class="py-3 pr-3">${violated ? '<span class="inline-flex items-center gap-1 rounded-full border border-bad/40 bg-bad/10 text-bad text-[10px] font-semibold px-2 py-1">⚠ &gt;5% pérdida</span>' : ''}</td>
+        <td class="py-3 pl-3 text-right">
+          <button data-id="${t.id}" class="delete-btn text-gray-500 hover:text-bad text-xs font-medium px-2 py-1 rounded-lg hover:bg-bad/10">
+            Borrar
+          </button>
+        </td>
+      `;
+      body.appendChild(tr);
+    });
+
+    body.querySelectorAll('.delete-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        trades = trades.filter((t) => String(t.id) !== id);
+        recalcCapitalBefore();
+        save();
+        renderAll();
+      });
+    });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function renderAll() {
+    renderStats();
+    renderDashboard();
+    renderHistory();
+    renderChart();
+  }
+
+  function updatePercentPreview() {
+    const pnl = parseFloat($('inputPnl').value);
+    const cap = currentCapital();
+    if (!isNaN(pnl) && cap > 0) {
+      $('inputPercent').value = `${((pnl / cap) * 100).toFixed(2)}%`;
+    } else {
+      $('inputPercent').value = '';
+    }
+  }
+
+  // Init capital input
+  $('initialCapitalInput').value = initialCapital || '';
+  $('saveCapitalBtn').addEventListener('click', () => {
+    const val = parseFloat($('initialCapitalInput').value);
+    if (isNaN(val) || val < 0) {
+      $('initialCapitalInput').classList.add('border-bad');
+      return;
+    }
+    $('initialCapitalInput').classList.remove('border-bad');
+    initialCapital = val;
+    recalcCapitalBefore();
+    save();
+    renderAll();
+  });
+
+  $('inputPnl').addEventListener('input', updatePercentPreview);
+
+  $('entryForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const date = $('inputDate').value;
+    const pair = $('inputPair').value.trim() || 'EUR/USD';
+    const pnl = parseFloat($('inputPnl').value);
+    const notes = $('inputNotes').value.trim();
+
+    if (!date || isNaN(pnl)) return;
+
+    trades.push({
+      id: Date.now() + Math.random().toString(16).slice(2),
+      date,
+      pair,
+      pnl,
+      notes,
+      capitalBefore: 0,
+      percent: 0,
+    });
+
+    trades.sort((a, b) => a.date.localeCompare(b.date) || 0);
+    recalcCapitalBefore();
+    save();
+    renderAll();
+
+    e.target.reset();
+    $('inputPair').value = 'EUR/USD';
+    $('inputPercent').value = '';
+  });
+
+  // Default date to today
+  $('inputDate').value = new Date().toISOString().slice(0, 10);
+
+  recalcCapitalBefore();
+  renderAll();
+})();
+</script>
+</body>
+</html>
