@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Trading Journal — EUR/USD | FTMO Prep</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -15,17 +14,14 @@
       extend: {
         fontFamily: { sans: ['Inter', 'sans-serif'] },
         colors: {
-          bg: '#0b0b0e',
-          card: '#16161d',
-          border: '#232330',
+          bg: '#050507',
+          card: '#111118',
+          border: '#1f1f2e',
           accent: '#8b5cf6',
           accent2: '#a855f7',
-          good: '#22c55e',
-          bad: '#ef4444',
+          good: '#34d399',
+          bad: '#f87171',
         },
-        boxShadow: {
-          glow: '0 0 24px -6px rgba(139,92,246,0.45)',
-        }
       }
     }
   }
@@ -33,30 +29,37 @@
 <style>
   html { scroll-behavior: smooth; }
   body {
-    background: radial-gradient(circle at 20% 0%, rgba(139,92,246,0.08), transparent 40%),
-                radial-gradient(circle at 80% 10%, rgba(168,85,247,0.06), transparent 35%),
-                #0b0b0e;
+    background: radial-gradient(circle at 15% 0%, rgba(139,92,246,0.09), transparent 40%),
+                radial-gradient(circle at 85% 8%, rgba(168,85,247,0.07), transparent 35%),
+                #050507;
   }
   * { transition: background-color 150ms ease, border-color 150ms ease, transform 150ms ease, box-shadow 150ms ease, opacity 150ms ease; }
   ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-track { background: #0b0b0e; }
-  ::-webkit-scrollbar-thumb { background: #2a2a35; border-radius: 8px; }
-  ::-webkit-scrollbar-thumb:hover { background: #3a3a48; }
-  input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.6; cursor: pointer; }
+  ::-webkit-scrollbar-track { background: #050507; }
+  ::-webkit-scrollbar-thumb { background: #26263a; border-radius: 8px; }
+  ::-webkit-scrollbar-thumb:hover { background: #35354d; }
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="time"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.6; cursor: pointer; }
   input:focus, select:focus, textarea:focus, button:focus { outline: none; }
-  .fade-in { animation: fadeIn 300ms ease both; }
+  .fade-in { animation: fadeIn 250ms ease both; }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-  .btn-accent {
-    background: linear-gradient(135deg, #8b5cf6, #a855f7);
-  }
+  .pop-in { animation: popIn 180ms cubic-bezier(.2,.8,.2,1) both; }
+  @keyframes popIn { from { opacity: 0; transform: scale(0.97) translateY(6px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+  .btn-accent { background: linear-gradient(135deg, #8b5cf6, #a855f7); }
   .btn-accent:hover { filter: brightness(1.1); box-shadow: 0 0 24px -6px rgba(139,92,246,0.6); }
   .btn-accent:active { transform: scale(0.98); }
-  table tbody tr:hover { background: rgba(139,92,246,0.05); }
+  .chip { cursor: pointer; user-select: none; }
+  .day-cell { cursor: pointer; }
+  .day-cell:hover { transform: translateY(-1px); }
+  .day-cell.disabled { cursor: default; pointer-events: none; }
+  .modal-backdrop { backdrop-filter: blur(6px); }
+  @keyframes pulseDot { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+  .pulse-dot { animation: pulseDot 1.4s ease-in-out infinite; }
 </style>
 </head>
 <body class="min-h-screen text-gray-200 font-sans antialiased">
 
-<div class="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+<div class="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-6">
 
   <!-- Header -->
   <header class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -64,20 +67,24 @@
       <h1 class="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
         Trading <span class="text-accent2">Journal</span>
       </h1>
-      <p class="text-sm text-gray-500 mt-1">Diario de P&amp;L diario · EUR/USD · Preparación cuenta FTMO</p>
+      <p class="text-sm text-gray-500 mt-1">EUR/USD · Diario operación por operación · Preparación cuenta FTMO</p>
     </div>
-    <div id="ftmoBadgeWrap" class="hidden">
-      <span class="inline-flex items-center gap-2 rounded-full border border-bad/40 bg-bad/10 text-bad text-xs font-semibold px-3 py-1.5">
-        <span class="h-1.5 w-1.5 rounded-full bg-bad animate-pulse"></span>
-        Regla del 5% diario superada
-      </span>
+    <div class="flex items-center gap-2">
+      <span id="accountStatusBadge" class="hidden inline-flex items-center gap-2 rounded-full border text-xs font-semibold px-3 py-1.5"></span>
+      <button id="exportBtn" class="border border-border text-gray-400 hover:text-white hover:border-accent/50 text-xs font-medium px-3 py-1.5 rounded-lg">
+        Exportar
+      </button>
+      <button id="importBtn" class="border border-border text-gray-400 hover:text-white hover:border-accent/50 text-xs font-medium px-3 py-1.5 rounded-lg">
+        Importar
+      </button>
+      <input id="importFile" type="file" accept="application/json" class="hidden">
     </div>
   </header>
 
   <!-- Account setup -->
   <section class="bg-card border border-border rounded-2xl p-5 sm:p-6">
     <div class="flex flex-col lg:flex-row lg:items-end gap-5 lg:gap-8">
-      <div class="flex-1">
+      <div class="lg:w-72">
         <label class="block text-xs font-medium text-gray-500 mb-1.5">Capital Inicial de la Cuenta ($)</label>
         <div class="flex gap-2">
           <input id="initialCapitalInput" type="number" min="0" step="0.01" placeholder="10000"
@@ -88,118 +95,78 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-3 gap-3 lg:gap-4 flex-1">
-        <div class="text-center sm:text-left">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 flex-1">
+        <div>
           <p class="text-[11px] uppercase tracking-wide text-gray-500">Capital Actual</p>
           <p id="statCurrentCapital" class="text-lg sm:text-xl font-bold text-white mt-0.5">$0.00</p>
         </div>
-        <div class="text-center sm:text-left">
+        <div>
           <p class="text-[11px] uppercase tracking-wide text-gray-500">P&amp;L Total</p>
           <p id="statTotalPnl" class="text-lg sm:text-xl font-bold mt-0.5">$0.00</p>
+          <p id="statTotalPnlPct" class="text-xs text-gray-600 mt-0.5">0.00% rentabilidad global</p>
         </div>
-        <div class="text-center sm:text-left">
-          <p class="text-[11px] uppercase tracking-wide text-gray-500">Rentabilidad Global</p>
-          <p id="statGlobalReturn" class="text-lg sm:text-xl font-bold mt-0.5">0.00%</p>
+        <div>
+          <p class="text-[11px] uppercase tracking-wide text-gray-500">Win Rate</p>
+          <p id="statWinRate" class="text-lg sm:text-xl font-bold text-accent2 mt-0.5">0%</p>
+          <p id="statWinRateSub" class="text-xs text-gray-600 mt-0.5">0 / 0 operaciones</p>
+        </div>
+        <div>
+          <p class="text-[11px] uppercase tracking-wide text-gray-500">Profit Factor</p>
+          <p id="statProfitFactor" class="text-lg sm:text-xl font-bold text-accent2 mt-0.5">0.00</p>
+          <p class="text-xs text-gray-600 mt-0.5">Ganancias / Pérdidas</p>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Dashboard cards -->
-  <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-    <div class="bg-card border border-border rounded-2xl p-4 sm:p-5">
-      <p class="text-[11px] uppercase tracking-wide text-gray-500">P&amp;L del Mes</p>
-      <p id="cardMonthPnl" class="text-xl sm:text-2xl font-bold text-white mt-1">$0.00</p>
-      <p id="cardMonthLabel" class="text-xs text-gray-600 mt-1">—</p>
+  <!-- Drawdown -->
+  <section class="bg-card border border-border rounded-2xl p-5 sm:p-6">
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-sm font-semibold text-white">Max Drawdown de la Cuenta</h2>
+      <span id="drawdownLabel" class="text-xs font-semibold text-gray-400">0.00% / 10.00%</span>
     </div>
-    <div class="bg-card border border-border rounded-2xl p-4 sm:p-5">
-      <p class="text-[11px] uppercase tracking-wide text-gray-500">Win Rate</p>
-      <p id="cardWinRate" class="text-xl sm:text-2xl font-bold text-accent2 mt-1">0%</p>
-      <p id="cardWinRateSub" class="text-xs text-gray-600 mt-1">0 / 0 días ganadores</p>
+    <div class="w-full h-2.5 rounded-full bg-bg border border-border overflow-hidden">
+      <div id="drawdownBar" class="h-full rounded-full" style="width:0%; background:#34d399;"></div>
     </div>
-    <div class="bg-card border border-border rounded-2xl p-4 sm:p-5">
-      <p class="text-[11px] uppercase tracking-wide text-gray-500">Profit Factor</p>
-      <p id="cardProfitFactor" class="text-xl sm:text-2xl font-bold text-accent2 mt-1">0.00</p>
-      <p class="text-xs text-gray-600 mt-1">Ganancias / Pérdidas</p>
-    </div>
-    <div id="cardFtmoAlert" class="bg-card border border-border rounded-2xl p-4 sm:p-5">
-      <p class="text-[11px] uppercase tracking-wide text-gray-500">Regla FTMO 5% diario</p>
-      <p id="cardFtmoStatus" class="text-xl sm:text-2xl font-bold text-good mt-1">OK</p>
-      <p id="cardFtmoSub" class="text-xs text-gray-600 mt-1">Sin violaciones registradas</p>
-    </div>
+    <p id="drawdownSub" class="text-xs text-gray-600 mt-2">Capital pico: $0.00 · Drawdown máximo histórico: 0.00%</p>
   </section>
 
-  <!-- Equity chart -->
+  <!-- Month navigator + summary -->
   <section class="bg-card border border-border rounded-2xl p-5 sm:p-6">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-sm font-semibold text-white">Curva de Capital</h2>
-      <span class="text-xs text-gray-500">Evolución por día registrado</span>
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div class="flex items-center gap-2">
+        <button id="prevMonthBtn" class="h-8 w-8 flex items-center justify-center rounded-lg border border-border text-gray-400 hover:text-white hover:border-accent/50">‹</button>
+        <h2 id="monthLabel" class="text-base font-bold text-white w-44 text-center">—</h2>
+        <button id="nextMonthBtn" class="h-8 w-8 flex items-center justify-center rounded-lg border border-border text-gray-400 hover:text-white hover:border-accent/50">›</button>
+        <button id="todayBtn" class="ml-1 text-xs font-medium text-gray-500 hover:text-accent2 border border-border rounded-lg px-2.5 py-1.5">Hoy</button>
+      </div>
+      <div class="flex flex-wrap gap-4 sm:gap-6 text-right">
+        <div>
+          <p class="text-[11px] uppercase tracking-wide text-gray-500">P&amp;L del mes</p>
+          <p id="monthPnl" class="text-base font-bold mt-0.5">$0.00</p>
+        </div>
+        <div>
+          <p class="text-[11px] uppercase tracking-wide text-gray-500">Win rate mes</p>
+          <p id="monthWinRate" class="text-base font-bold text-accent2 mt-0.5">0%</p>
+        </div>
+        <div>
+          <p class="text-[11px] uppercase tracking-wide text-gray-500">Mejor / Peor día</p>
+          <p id="monthBestWorst" class="text-base font-bold mt-0.5">—</p>
+        </div>
+      </div>
     </div>
-    <div class="h-64 sm:h-72">
-      <canvas id="equityChart"></canvas>
-    </div>
-  </section>
 
-  <!-- Add entry form -->
-  <section class="bg-card border border-border rounded-2xl p-5 sm:p-6">
-    <h2 class="text-sm font-semibold text-white mb-4">Registrar Día de Trading</h2>
-    <form id="entryForm" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 sm:gap-4">
-      <div class="lg:col-span-1">
-        <label class="block text-xs font-medium text-gray-500 mb-1.5">Fecha</label>
-        <input id="inputDate" type="date" required
-          class="w-full bg-bg border border-border rounded-xl px-3 py-2.5 text-white text-sm focus:border-accent">
-      </div>
-      <div class="lg:col-span-1">
-        <label class="block text-xs font-medium text-gray-500 mb-1.5">Par</label>
-        <input id="inputPair" type="text" value="EUR/USD" required
-          class="w-full bg-bg border border-border rounded-xl px-3 py-2.5 text-white text-sm placeholder-gray-600 focus:border-accent">
-      </div>
-      <div class="lg:col-span-1">
-        <label class="block text-xs font-medium text-gray-500 mb-1.5">P&amp;L ($)</label>
-        <input id="inputPnl" type="number" step="0.01" placeholder="150.00" required
-          class="w-full bg-bg border border-border rounded-xl px-3 py-2.5 text-white text-sm placeholder-gray-600 focus:border-accent">
-      </div>
-      <div class="lg:col-span-1">
-        <label class="block text-xs font-medium text-gray-500 mb-1.5">% sobre Capital</label>
-        <input id="inputPercent" type="text" disabled placeholder="Auto"
-          class="w-full bg-bg/50 border border-border rounded-xl px-3 py-2.5 text-gray-400 text-sm">
-      </div>
-      <div class="lg:col-span-1">
-        <label class="block text-xs font-medium text-gray-500 mb-1.5">Notas / Emociones</label>
-        <input id="inputNotes" type="text" placeholder="Ej: seguí el plan, sin FOMO"
-          class="w-full bg-bg border border-border rounded-xl px-3 py-2.5 text-white text-sm placeholder-gray-600 focus:border-accent">
-      </div>
-      <div class="lg:col-span-1 flex items-end">
-        <button type="submit" class="btn-accent w-full text-white text-sm font-semibold px-4 py-2.5 rounded-xl">
-          + Añadir Día
-        </button>
-      </div>
-    </form>
-  </section>
+    <!-- Calendar -->
+    <div class="grid grid-cols-7 gap-1.5 sm:gap-2 text-center text-[10px] uppercase tracking-wide text-gray-600 mb-1.5">
+      <div>L</div><div>M</div><div>X</div><div>J</div><div>V</div><div>S</div><div>D</div>
+    </div>
+    <div id="calendarGrid" class="grid grid-cols-7 gap-1.5 sm:gap-2"></div>
 
-  <!-- History table -->
-  <section class="bg-card border border-border rounded-2xl p-5 sm:p-6">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-sm font-semibold text-white">Historial de Días</h2>
-      <span id="historyCount" class="text-xs text-gray-500">0 registros</span>
-    </div>
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="text-left text-[11px] uppercase tracking-wide text-gray-500 border-b border-border">
-            <th class="py-2 pr-3 font-medium">Fecha</th>
-            <th class="py-2 pr-3 font-medium">Par</th>
-            <th class="py-2 pr-3 font-medium">P&amp;L ($)</th>
-            <th class="py-2 pr-3 font-medium">%</th>
-            <th class="py-2 pr-3 font-medium">Notas</th>
-            <th class="py-2 pr-3 font-medium"></th>
-            <th class="py-2 pl-3 font-medium text-right">Acción</th>
-          </tr>
-        </thead>
-        <tbody id="historyBody" class="divide-y divide-border/60"></tbody>
-      </table>
-      <p id="emptyState" class="text-center text-gray-600 text-sm py-10">Aún no hay días registrados. Añade tu primer resultado arriba.</p>
-    </div>
+    <!-- Weekly breakdown toggle -->
+    <button id="weeklyToggleBtn" class="mt-5 flex items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-accent2">
+      <span id="weeklyToggleIcon" class="inline-block transition-transform">▸</span> Desglose semanal
+    </button>
+    <div id="weeklyBreakdown" class="hidden mt-3 space-y-1.5"></div>
   </section>
 
   <footer class="text-center text-xs text-gray-600 pt-2 pb-4">
@@ -208,231 +175,591 @@
 
 </div>
 
+<!-- Day modal -->
+<div id="dayModal" class="hidden fixed inset-0 z-50 flex items-start sm:items-center justify-center p-3 sm:p-6 overflow-y-auto modal-backdrop bg-black/60">
+  <div class="pop-in bg-card border border-border rounded-2xl w-full max-w-2xl my-6">
+    <div class="flex items-start justify-between p-5 sm:p-6 border-b border-border">
+      <div class="flex-1">
+        <p class="text-xs text-gray-500 mb-1">Sesión de trading</p>
+        <div class="flex items-center gap-3 flex-wrap">
+          <h3 id="modalDateLabel" class="text-lg font-bold text-white">—</h3>
+          <input id="modalPairInput" type="text" placeholder="EUR/USD"
+            class="bg-bg border border-border rounded-lg px-2.5 py-1 text-sm text-white w-28 focus:border-accent">
+        </div>
+      </div>
+      <button id="closeModalBtn" class="text-gray-500 hover:text-white text-xl leading-none px-2">✕</button>
+    </div>
+
+    <div class="p-5 sm:p-6 space-y-5">
+      <div id="modalDayAlert" class="hidden rounded-xl border px-4 py-3 text-sm font-semibold"></div>
+
+      <div class="flex items-center justify-between">
+        <p class="text-sm text-gray-400">P&amp;L Neto del Día: <span id="modalDayPnl" class="font-bold">$0.00</span></p>
+        <button id="deleteDayBtn" class="hidden text-xs font-medium text-bad/80 hover:text-bad">Eliminar día completo</button>
+      </div>
+
+      <!-- Trades table -->
+      <div class="overflow-x-auto rounded-xl border border-border">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-[10px] uppercase tracking-wide text-gray-500 bg-bg/60">
+              <th class="py-2 px-3 font-medium">Hora</th>
+              <th class="py-2 px-3 font-medium">Tipo</th>
+              <th class="py-2 px-3 font-medium">P&amp;L</th>
+              <th class="py-2 px-3 font-medium">Pips</th>
+              <th class="py-2 px-3 font-medium">Psicología</th>
+              <th class="py-2 px-3 font-medium"></th>
+              <th class="py-2 px-3 font-medium text-right">Acción</th>
+            </tr>
+          </thead>
+          <tbody id="modalTradesBody" class="divide-y divide-border/60"></tbody>
+        </table>
+        <p id="modalEmptyTrades" class="text-center text-gray-600 text-sm py-8">Aún no hay operaciones este día.</p>
+      </div>
+
+      <!-- Add / edit trade form -->
+      <form id="tradeForm" class="bg-bg/40 border border-border rounded-xl p-4 space-y-3">
+        <p id="tradeFormTitle" class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Añadir operación</p>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-[11px] text-gray-500 mb-1">Hora</label>
+            <input id="tradeTime" type="time" required class="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-white text-sm focus:border-accent">
+          </div>
+          <div>
+            <label class="block text-[11px] text-gray-500 mb-1">Tipo</label>
+            <div class="flex rounded-lg border border-border overflow-hidden text-xs font-semibold">
+              <button type="button" data-type="long" class="type-btn flex-1 py-2">LONG</button>
+              <button type="button" data-type="short" class="type-btn flex-1 py-2">SHORT</button>
+            </div>
+          </div>
+          <div>
+            <label class="block text-[11px] text-gray-500 mb-1">P&amp;L ($)</label>
+            <input id="tradePnl" type="number" step="0.01" placeholder="150.00" required class="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-white text-sm placeholder-gray-600 focus:border-accent">
+          </div>
+          <div>
+            <label class="block text-[11px] text-gray-500 mb-1">Pips</label>
+            <input id="tradePips" type="number" step="0.1" placeholder="12.5" class="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-white text-sm placeholder-gray-600 focus:border-accent">
+          </div>
+        </div>
+        <div>
+          <label class="block text-[11px] text-gray-500 mb-1">Enlace del gráfico (TradingView)</label>
+          <input id="tradeChartUrl" type="text" placeholder="https://www.tradingview.com/x/..." class="w-full bg-bg border border-border rounded-lg px-2.5 py-2 text-white text-sm placeholder-gray-600 focus:border-accent">
+        </div>
+        <div>
+          <label class="block text-[11px] text-gray-500 mb-1.5">Psicología / Errores</label>
+          <div id="tagChips" class="flex flex-wrap gap-2"></div>
+        </div>
+        <div class="flex items-center gap-2 pt-1">
+          <button type="submit" class="btn-accent flex-1 text-white text-sm font-semibold px-4 py-2.5 rounded-xl">
+            <span id="tradeFormSubmitLabel">+ Añadir Operación</span>
+          </button>
+          <button type="button" id="cancelEditBtn" class="hidden text-xs font-medium text-gray-500 hover:text-white border border-border rounded-xl px-4 py-2.5">
+            Cancelar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script>
 (function () {
-  const STORAGE_CAPITAL = 'tj_initialCapital';
-  const STORAGE_TRADES = 'tj_trades';
+  const STORAGE_CAPITAL = 'tj2_initialCapital';
+  const STORAGE_DAYS = 'tj2_days';
   const FTMO_DAILY_LIMIT_PCT = 5;
+  const FTMO_MAX_DRAWDOWN_PCT = 10;
+  const TAGS = ['Plan perfecto', 'Ansiedad / Entrada anticipada', 'Mover Stop Loss', 'Operar por venganza / Tilt'];
+  const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
   const $ = (id) => document.getElementById(id);
 
   let initialCapital = parseFloat(localStorage.getItem(STORAGE_CAPITAL)) || 0;
-  let trades = [];
+  let days = [];
   try {
-    trades = JSON.parse(localStorage.getItem(STORAGE_TRADES)) || [];
+    days = JSON.parse(localStorage.getItem(STORAGE_DAYS)) || [];
   } catch (e) {
-    trades = [];
+    days = [];
   }
 
-  const fmtUsd = (n) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const fmtPct = (n) => `${n >= 0 ? '' : ''}${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
-  const colorFor = (n) => (n > 0 ? 'text-good' : n < 0 ? 'text-bad' : 'text-gray-300');
+  const today = new Date();
+  let viewYear = today.getFullYear();
+  let viewMonth = today.getMonth();
+  let selectedDate = null;
+  let editingTradeId = null;
+  let formType = 'long';
+  let formTags = [];
 
-  let chart = null;
-
-  function currentCapital() {
-    return initialCapital + trades.reduce((sum, t) => sum + t.pnl, 0);
+  // ---------- helpers ----------
+  function uid() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return Date.now().toString(36) + Math.random().toString(36).slice(2);
   }
 
-  function totalPnl() {
-    return trades.reduce((sum, t) => sum + t.pnl, 0);
+  function pad2(n) { return String(n).padStart(2, '0'); }
+
+  function toDateStr(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+
+  function parseDateStr(s) {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, m - 1, d);
   }
 
-  function globalReturnPct() {
-    if (initialCapital <= 0) return 0;
-    return (totalPnl() / initialCapital) * 100;
+  function fmtUsd(n) { return `$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
+  function signedUsd(n) { return `${n >= 0 ? '+' : '-'}${fmtUsd(n)}`; }
+  function fmtPct(n) { return `${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`; }
+  function signedPct(n) { return `${n >= 0 ? '+' : ''}${fmtPct(n)}`; }
+  function colorFor(n) { return n > 0 ? 'text-good' : n < 0 ? 'text-bad' : 'text-gray-300'; }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
   }
 
-  function recalcCapitalBefore() {
-    let running = initialCapital;
-    trades.forEach((t) => {
-      t.capitalBefore = running;
-      t.percent = running > 0 ? (t.pnl / running) * 100 : 0;
-      running += t.pnl;
-    });
+  function isValidHttpUrl(str) {
+    return /^https?:\/\/.+/i.test((str || '').trim());
   }
 
+  // ---------- persistence ----------
   function save() {
     localStorage.setItem(STORAGE_CAPITAL, String(initialCapital));
-    localStorage.setItem(STORAGE_TRADES, JSON.stringify(trades));
+    localStorage.setItem(STORAGE_DAYS, JSON.stringify(days));
   }
 
-  function renderStats() {
-    $('statCurrentCapital').textContent = fmtUsd(currentCapital());
-    const pnl = totalPnl();
-    const pnlEl = $('statTotalPnl');
-    pnlEl.textContent = `${pnl >= 0 ? '+' : ''}${fmtUsd(pnl)}`;
-    pnlEl.className = `text-lg sm:text-xl font-bold mt-0.5 ${colorFor(pnl)}`;
-    const ret = globalReturnPct();
-    const retEl = $('statGlobalReturn');
-    retEl.textContent = `${ret >= 0 ? '+' : ''}${fmtPct(ret)}`;
-    retEl.className = `text-lg sm:text-xl font-bold mt-0.5 ${colorFor(ret)}`;
+  // ---------- data mutation ----------
+  function getDay(dateStr) { return days.find((d) => d.date === dateStr); }
+
+  function getOrCreateDay(dateStr, pair) {
+    let day = getDay(dateStr);
+    if (!day) {
+      day = { date: dateStr, pair: pair || 'EUR/USD', trades: [] };
+      days.push(day);
+    } else if (pair) {
+      day.pair = pair;
+    }
+    return day;
   }
 
-  function renderDashboard() {
-    const now = new Date();
-    const monthTrades = trades.filter((t) => {
-      const d = new Date(t.date + 'T00:00:00');
-      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  function deleteDayByDate(dateStr) {
+    days = days.filter((d) => d.date !== dateStr);
+  }
+
+  function deleteTrade(dateStr, tradeId) {
+    const day = getDay(dateStr);
+    if (!day) return;
+    day.trades = day.trades.filter((t) => t.id !== tradeId);
+    if (day.trades.length === 0) deleteDayByDate(dateStr);
+  }
+
+  // ---------- computations ----------
+  function sortedDays() { return [...days].sort((a, b) => a.date.localeCompare(b.date)); }
+
+  function dayPnl(day) { return day.trades.reduce((s, t) => s + t.pnl, 0); }
+
+  function allTrades() {
+    const list = [];
+    days.forEach((d) => d.trades.forEach((t) => list.push(t)));
+    return list;
+  }
+
+  function timeline() {
+    let running = initialCapital;
+    let peak = initialCapital;
+    let maxDrawdownPct = 0;
+    const capitalBeforeByDate = {};
+    sortedDays().forEach((day) => {
+      capitalBeforeByDate[day.date] = running;
+      running += dayPnl(day);
+      peak = Math.max(peak, running);
+      const dd = peak > 0 ? ((peak - running) / peak) * 100 : 0;
+      maxDrawdownPct = Math.max(maxDrawdownPct, dd);
     });
-    const monthPnl = monthTrades.reduce((s, t) => s + t.pnl, 0);
-    const monthPnlEl = $('cardMonthPnl');
-    monthPnlEl.textContent = `${monthPnl >= 0 ? '+' : ''}${fmtUsd(monthPnl)}`;
-    monthPnlEl.className = `text-xl sm:text-2xl font-bold mt-1 ${colorFor(monthPnl)}`;
-    const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-    $('cardMonthLabel').textContent = `${monthNames[now.getMonth()]} ${now.getFullYear()} · ${monthTrades.length} días`;
+    const currentDrawdownPct = peak > 0 ? Math.max(0, (peak - running) / peak * 100) : 0;
+    return { currentCapital: running, peak, currentDrawdownPct, maxDrawdownPct, capitalBeforeByDate };
+  }
 
-    const wins = trades.filter((t) => t.pnl > 0);
-    const losses = trades.filter((t) => t.pnl < 0);
-    const winRate = trades.length > 0 ? (wins.length / trades.length) * 100 : 0;
-    $('cardWinRate').textContent = `${winRate.toFixed(1)}%`;
-    $('cardWinRateSub').textContent = `${wins.length} / ${trades.length} días ganadores`;
+  function dayAlertTier(day, capitalBefore) {
+    const lossSum = Math.abs(day.trades.filter((t) => t.pnl < 0).reduce((s, t) => s + t.pnl, 0));
+    const threshold = capitalBefore * (FTMO_DAILY_LIMIT_PCT / 100);
+    if (threshold <= 0) return { tier: 'ok', lossSum, threshold, ratio: 0 };
+    const ratio = lossSum / threshold;
+    if (ratio >= 1) return { tier: 'danger', lossSum, threshold, ratio };
+    if (ratio >= 0.8) return { tier: 'warning', lossSum, threshold, ratio };
+    return { tier: 'ok', lossSum, threshold, ratio };
+  }
 
-    const grossWin = wins.reduce((s, t) => s + t.pnl, 0);
-    const grossLoss = Math.abs(losses.reduce((s, t) => s + t.pnl, 0));
+  function globalStats() {
+    const t = timeline();
+    const trades = allTrades();
+    const wins = trades.filter((x) => x.pnl > 0);
+    const losses = trades.filter((x) => x.pnl < 0);
+    const grossWin = wins.reduce((s, x) => s + x.pnl, 0);
+    const grossLoss = Math.abs(losses.reduce((s, x) => s + x.pnl, 0));
     const profitFactor = grossLoss > 0 ? grossWin / grossLoss : (grossWin > 0 ? Infinity : 0);
-    $('cardProfitFactor').textContent = profitFactor === Infinity ? '∞' : profitFactor.toFixed(2);
+    const totalPnl = t.currentCapital - initialCapital;
+    return {
+      currentCapital: t.currentCapital,
+      totalPnl,
+      totalPnlPct: initialCapital > 0 ? (totalPnl / initialCapital) * 100 : 0,
+      winRate: trades.length > 0 ? (wins.length / trades.length) * 100 : 0,
+      winsCount: wins.length,
+      tradesCount: trades.length,
+      profitFactor,
+      peak: t.peak,
+      currentDrawdownPct: t.currentDrawdownPct,
+      maxDrawdownPct: t.maxDrawdownPct,
+    };
+  }
 
-    const violations = trades.filter((t) => t.capitalBefore > 0 && t.pnl < 0 && Math.abs(t.pnl) > (FTMO_DAILY_LIMIT_PCT / 100) * t.capitalBefore);
-    const ftmoStatusEl = $('cardFtmoStatus');
-    const ftmoSubEl = $('cardFtmoSub');
-    const ftmoBadgeWrap = $('ftmoBadgeWrap');
-    if (violations.length > 0) {
-      ftmoStatusEl.textContent = 'RIESGO';
-      ftmoStatusEl.className = 'text-xl sm:text-2xl font-bold text-bad mt-1';
-      ftmoSubEl.textContent = `${violations.length} día(s) superaron el 5% de pérdida diaria`;
-      ftmoBadgeWrap.classList.remove('hidden');
+  function monthDays(year, month) {
+    return sortedDays().filter((d) => {
+      const dt = parseDateStr(d.date);
+      return dt.getFullYear() === year && dt.getMonth() === month;
+    });
+  }
+
+  function monthSummary(year, month) {
+    const list = monthDays(year, month);
+    const totalPnl = list.reduce((s, d) => s + dayPnl(d), 0);
+    const trades = [];
+    list.forEach((d) => d.trades.forEach((t) => trades.push(t)));
+    const wins = trades.filter((t) => t.pnl > 0);
+    const winRate = trades.length > 0 ? (wins.length / trades.length) * 100 : 0;
+    let best = null, worst = null;
+    list.forEach((d) => {
+      const p = dayPnl(d);
+      if (!best || p > dayPnl(best)) best = d;
+      if (!worst || p < dayPnl(worst)) worst = d;
+    });
+    return { totalPnl, winRate, tradesCount: trades.length, tradingDays: list.length, best, worst };
+  }
+
+  function buildMonthGrid(year, month) {
+    const firstOfMonth = new Date(year, month, 1);
+    const firstWeekday = (firstOfMonth.getDay() + 6) % 7; // Monday = 0
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+    const cells = [];
+    for (let i = firstWeekday - 1; i >= 0; i--) {
+      const d = daysInPrevMonth - i;
+      cells.push({ day: d, dateStr: toDateStr(new Date(year, month - 1, d)), inMonth: false });
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      cells.push({ day: d, dateStr: toDateStr(new Date(year, month, d)), inMonth: true });
+    }
+    let nextDay = 1;
+    while (cells.length % 7 !== 0) {
+      cells.push({ day: nextDay, dateStr: toDateStr(new Date(year, month + 1, nextDay)), inMonth: false });
+      nextDay++;
+    }
+    return { cells, firstWeekday, daysInMonth };
+  }
+
+  function weeklyBreakdown(year, month) {
+    const { firstWeekday, daysInMonth } = buildMonthGrid(year, month);
+    const weeks = new Map();
+    for (let d = 1; d <= daysInMonth; d++) {
+      const weekIdx = Math.floor((d - 1 + firstWeekday) / 7) + 1;
+      if (!weeks.has(weekIdx)) weeks.set(weekIdx, { start: d, end: d, pnl: 0, trades: 0 });
+      const w = weeks.get(weekIdx);
+      w.end = d;
+      const day = getDay(toDateStr(new Date(year, month, d)));
+      if (day) {
+        w.pnl += dayPnl(day);
+        w.trades += day.trades.length;
+      }
+    }
+    return [...weeks.entries()].map(([idx, w]) => ({ idx, ...w }));
+  }
+
+  // ---------- rendering ----------
+  function renderAccountStats() {
+    const s = globalStats();
+    $('statCurrentCapital').textContent = fmtUsd(s.currentCapital);
+
+    const pnlEl = $('statTotalPnl');
+    pnlEl.textContent = signedUsd(s.totalPnl);
+    pnlEl.className = `text-lg sm:text-xl font-bold mt-0.5 ${colorFor(s.totalPnl)}`;
+    $('statTotalPnlPct').textContent = `${signedPct(s.totalPnlPct)} rentabilidad global`;
+
+    $('statWinRate').textContent = `${s.winRate.toFixed(1)}%`;
+    $('statWinRateSub').textContent = `${s.winsCount} / ${s.tradesCount} operaciones`;
+
+    $('statProfitFactor').textContent = s.profitFactor === Infinity ? '∞' : s.profitFactor.toFixed(2);
+
+    const badge = $('accountStatusBadge');
+    if (s.currentDrawdownPct >= FTMO_MAX_DRAWDOWN_PCT) {
+      badge.className = 'inline-flex items-center gap-2 rounded-full border border-bad/40 bg-bad/10 text-bad text-xs font-semibold px-3 py-1.5';
+      badge.innerHTML = '<span class="h-1.5 w-1.5 rounded-full bg-bad pulse-dot"></span> Max Drawdown superado';
+      badge.classList.remove('hidden');
+    } else if (s.currentDrawdownPct >= FTMO_MAX_DRAWDOWN_PCT * 0.8) {
+      badge.className = 'inline-flex items-center gap-2 rounded-full border border-amber-400/40 bg-amber-400/10 text-amber-300 text-xs font-semibold px-3 py-1.5';
+      badge.innerHTML = '<span class="h-1.5 w-1.5 rounded-full bg-amber-400 pulse-dot"></span> Drawdown en riesgo';
+      badge.classList.remove('hidden');
     } else {
-      ftmoStatusEl.textContent = 'OK';
-      ftmoStatusEl.className = 'text-xl sm:text-2xl font-bold text-good mt-1';
-      ftmoSubEl.textContent = 'Sin violaciones registradas';
-      ftmoBadgeWrap.classList.add('hidden');
+      badge.classList.add('hidden');
     }
   }
 
-  function renderChart() {
-    if (typeof Chart === 'undefined') return;
-    const ctx = $('equityChart').getContext('2d');
-    let running = initialCapital;
-    const labels = ['Inicio'];
-    const data = [initialCapital];
-    trades.forEach((t) => {
-      running += t.pnl;
-      labels.push(t.date);
-      data.push(running);
-    });
+  function renderDrawdownBar() {
+    const s = globalStats();
+    const pct = Math.min(100, (s.currentDrawdownPct / FTMO_MAX_DRAWDOWN_PCT) * 100);
+    const bar = $('drawdownBar');
+    bar.style.width = `${pct}%`;
+    bar.style.background = s.currentDrawdownPct >= FTMO_MAX_DRAWDOWN_PCT ? '#f87171' : s.currentDrawdownPct >= FTMO_MAX_DRAWDOWN_PCT * 0.8 ? '#fbbf24' : '#34d399';
+    $('drawdownLabel').textContent = `${s.currentDrawdownPct.toFixed(2)}% / ${FTMO_MAX_DRAWDOWN_PCT.toFixed(2)}%`;
+    $('drawdownSub').textContent = `Capital pico: ${fmtUsd(s.peak)} · Drawdown máximo histórico: ${s.maxDrawdownPct.toFixed(2)}%`;
+  }
 
-    if (chart) chart.destroy();
-    chart = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels,
-        datasets: [{
-          label: 'Capital',
-          data,
-          borderColor: '#a855f7',
-          backgroundColor: 'rgba(139,92,246,0.15)',
-          pointBackgroundColor: '#8b5cf6',
-          pointBorderColor: '#0b0b0e',
-          pointRadius: 3,
-          pointHoverRadius: 5,
-          borderWidth: 2,
-          fill: true,
-          tension: 0.3,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: '#16161d',
-            borderColor: '#232330',
-            borderWidth: 1,
-            titleColor: '#e5e7eb',
-            bodyColor: '#e5e7eb',
-            callbacks: {
-              label: (ctx) => `Capital: ${fmtUsd(ctx.parsed.y)}`,
-            }
-          }
-        },
-        scales: {
-          x: {
-            grid: { color: '#1c1c24' },
-            ticks: { color: '#6b7280', maxTicksLimit: 8 }
-          },
-          y: {
-            grid: { color: '#1c1c24' },
-            ticks: { color: '#6b7280', callback: (v) => fmtUsd(v) }
-          }
-        }
+  function renderMonthHeader() {
+    $('monthLabel').textContent = `${MONTH_NAMES[viewMonth]} ${viewYear}`;
+    const sum = monthSummary(viewYear, viewMonth);
+    const pnlEl = $('monthPnl');
+    pnlEl.textContent = signedUsd(sum.totalPnl);
+    pnlEl.className = `text-base font-bold mt-0.5 ${colorFor(sum.totalPnl)}`;
+    $('monthWinRate').textContent = `${sum.winRate.toFixed(1)}%`;
+    const bw = $('monthBestWorst');
+    if (sum.best || sum.worst) {
+      const bestPnl = sum.best ? dayPnl(sum.best) : 0;
+      const worstPnl = sum.worst ? dayPnl(sum.worst) : 0;
+      bw.innerHTML = `<span class="text-good">${signedUsd(bestPnl)}</span> / <span class="text-bad">${signedUsd(worstPnl)}</span>`;
+    } else {
+      bw.textContent = '—';
+    }
+  }
+
+  function renderCalendar() {
+    const t = timeline();
+    const { cells } = buildMonthGrid(viewYear, viewMonth);
+    const grid = $('calendarGrid');
+    grid.innerHTML = '';
+    const todayStr = toDateStr(today);
+
+    cells.forEach((cell) => {
+      const day = getDay(cell.dateStr);
+      const wrapper = document.createElement('div');
+      const dow = (parseDateStr(cell.dateStr).getDay() + 6) % 7;
+      const isWeekend = dow >= 5;
+      const isToday = cell.dateStr === todayStr;
+      const isSelected = cell.dateStr === selectedDate;
+
+      let borderClasses = 'border-border';
+      let bgClasses = 'bg-bg/40';
+      let pnlHtml = '';
+      let alertDot = '';
+
+      if (day) {
+        const pnl = dayPnl(day);
+        const capBefore = t.capitalBeforeByDate[day.date] ?? initialCapital;
+        const alert = dayAlertTier(day, capBefore);
+        if (pnl > 0) { borderClasses = 'border-good/30'; bgClasses = 'bg-good/10'; }
+        else if (pnl < 0) { borderClasses = 'border-bad/30'; bgClasses = 'bg-bad/10'; }
+        else { borderClasses = 'border-border'; bgClasses = 'bg-bg/60'; }
+        pnlHtml = `<span class="text-[11px] sm:text-xs font-bold ${colorFor(pnl)}">${signedUsd(pnl)}</span>`;
+        if (alert.tier === 'danger') { alertDot = '<span class="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-bad pulse-dot"></span>'; }
+        else if (alert.tier === 'warning') { alertDot = '<span class="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-amber-400"></span>'; }
+      } else if (isWeekend && cell.inMonth) {
+        bgClasses = 'bg-bg/20';
       }
+
+      const ringClass = isSelected ? 'ring-2 ring-accent' : '';
+      const opacityClass = cell.inMonth ? '' : 'opacity-25 pointer-events-none';
+      const numberClass = isToday ? 'text-accent2 font-bold' : cell.inMonth ? 'text-gray-400' : 'text-gray-600';
+
+      wrapper.className = `day-cell relative rounded-xl border ${borderClasses} ${bgClasses} ${ringClass} ${opacityClass} p-1.5 sm:p-2.5 min-h-[56px] sm:min-h-[70px] flex flex-col justify-between fade-in`;
+      wrapper.innerHTML = `
+        ${alertDot}
+        <span class="text-[10px] sm:text-xs ${numberClass}">${cell.day}</span>
+        <div class="flex justify-end">${pnlHtml}</div>
+      `;
+      if (cell.inMonth) {
+        wrapper.addEventListener('click', () => openDayModal(cell.dateStr));
+      } else {
+        wrapper.classList.add('disabled');
+      }
+      grid.appendChild(wrapper);
     });
   }
 
-  function renderHistory() {
-    const body = $('historyBody');
-    body.innerHTML = '';
-    $('historyCount').textContent = `${trades.length} registro${trades.length === 1 ? '' : 's'}`;
-    $('emptyState').classList.toggle('hidden', trades.length > 0);
+  function renderWeeklyBreakdown() {
+    const weeks = weeklyBreakdown(viewYear, viewMonth);
+    const wrap = $('weeklyBreakdown');
+    wrap.innerHTML = weeks.map((w) => {
+      const start = `${pad2(w.start)}/${pad2(viewMonth + 1)}`;
+      const end = `${pad2(w.end)}/${pad2(viewMonth + 1)}`;
+      return `
+        <div class="flex items-center justify-between rounded-lg border border-border bg-bg/40 px-3.5 py-2 text-sm">
+          <span class="text-gray-500 text-xs">Semana ${w.idx} <span class="text-gray-600">(${start}–${end})</span></span>
+          <span class="text-gray-600 text-xs">${w.trades} op.</span>
+          <span class="font-semibold text-xs ${colorFor(w.pnl)}">${signedUsd(w.pnl)}</span>
+        </div>
+      `;
+    }).join('');
+  }
 
-    trades.slice().reverse().forEach((t) => {
-      const violated = t.capitalBefore > 0 && t.pnl < 0 && Math.abs(t.pnl) > (FTMO_DAILY_LIMIT_PCT / 100) * t.capitalBefore;
+  function renderAll() {
+    renderAccountStats();
+    renderDrawdownBar();
+    renderMonthHeader();
+    renderCalendar();
+    renderWeeklyBreakdown();
+    if (selectedDate && !$('dayModal').classList.contains('hidden')) renderDayModal();
+  }
+
+  // ---------- day modal ----------
+  function tagStyle(tag) {
+    return tag === 'Plan perfecto'
+      ? 'border-good/40 bg-good/10 text-good'
+      : 'border-amber-400/40 bg-amber-400/10 text-amber-300';
+  }
+
+  function renderTagChips() {
+    $('tagChips').innerHTML = TAGS.map((tag) => {
+      const active = formTags.includes(tag);
+      const base = active ? tagStyle(tag) : 'border-border text-gray-500 hover:text-gray-300';
+      return `<button type="button" data-tag="${escapeHtml(tag)}" class="chip tag-chip border rounded-full px-3 py-1 text-[11px] font-medium ${base}">${escapeHtml(tag)}</button>`;
+    }).join('');
+    $('tagChips').querySelectorAll('.tag-chip').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const tag = btn.getAttribute('data-tag');
+        formTags = formTags.includes(tag) ? formTags.filter((x) => x !== tag) : [...formTags, tag];
+        renderTagChips();
+      });
+    });
+  }
+
+  function setFormType(type) {
+    formType = type;
+    document.querySelectorAll('.type-btn').forEach((btn) => {
+      const active = btn.getAttribute('data-type') === type;
+      btn.className = `type-btn flex-1 py-2 ${active ? (type === 'long' ? 'bg-accent/20 text-accent2' : 'bg-blue-500/20 text-blue-300') : 'bg-bg text-gray-500'}`;
+    });
+  }
+
+  function resetTradeForm() {
+    editingTradeId = null;
+    formType = 'long';
+    formTags = [];
+    $('tradeForm').reset();
+    setFormType('long');
+    renderTagChips();
+    $('tradeFormTitle').textContent = 'Añadir operación';
+    $('tradeFormSubmitLabel').textContent = '+ Añadir Operación';
+    $('cancelEditBtn').classList.add('hidden');
+    const now = new Date();
+    $('tradeTime').value = `${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+  }
+
+  function openDayModal(dateStr) {
+    selectedDate = dateStr;
+    resetTradeForm();
+    const day = getDay(dateStr);
+    $('modalPairInput').value = day ? day.pair : 'EUR/USD';
+    renderDayModal();
+    renderCalendar();
+    $('dayModal').classList.remove('hidden');
+  }
+
+  function closeDayModal() {
+    $('dayModal').classList.add('hidden');
+    selectedDate = null;
+    renderCalendar();
+  }
+
+  function renderDayModal() {
+    const day = getDay(selectedDate);
+    const dt = parseDateStr(selectedDate);
+    const weekdayNames = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    $('modalDateLabel').textContent = `${weekdayNames[dt.getDay()]}, ${dt.getDate()} ${MONTH_NAMES[dt.getMonth()]} ${dt.getFullYear()}`;
+
+    const trades = day ? [...day.trades].sort((a, b) => a.time.localeCompare(b.time)) : [];
+    const pnl = day ? dayPnl(day) : 0;
+    const pnlEl = $('modalDayPnl');
+    pnlEl.textContent = signedUsd(pnl);
+    pnlEl.className = `font-bold ${colorFor(pnl)}`;
+
+    $('deleteDayBtn').classList.toggle('hidden', !day);
+
+    const t = timeline();
+    const capBefore = t.capitalBeforeByDate[selectedDate] ?? initialCapital;
+    const alertBox = $('modalDayAlert');
+    if (day && day.trades.length > 0) {
+      const alert = dayAlertTier(day, capBefore);
+      if (alert.tier === 'danger') {
+        alertBox.className = 'rounded-xl border border-bad/40 bg-bad/10 text-bad px-4 py-3 text-sm font-semibold';
+        alertBox.textContent = `¡Alerta FTMO! Límite diario superado: -${fmtUsd(alert.lossSum)} de pérdidas (${FTMO_DAILY_LIMIT_PCT}% del capital = ${fmtUsd(alert.threshold)}).`;
+        alertBox.classList.remove('hidden');
+      } else if (alert.tier === 'warning') {
+        alertBox.className = 'rounded-xl border border-amber-400/40 bg-amber-400/10 text-amber-300 px-4 py-3 text-sm font-semibold';
+        alertBox.textContent = `Cerca del límite diario FTMO: -${fmtUsd(alert.lossSum)} de pérdidas (límite ${fmtUsd(alert.threshold)}).`;
+        alertBox.classList.remove('hidden');
+      } else {
+        alertBox.classList.add('hidden');
+      }
+    } else {
+      alertBox.classList.add('hidden');
+    }
+
+    const body = $('modalTradesBody');
+    body.innerHTML = '';
+    $('modalEmptyTrades').classList.toggle('hidden', trades.length > 0);
+
+    trades.forEach((trade) => {
       const tr = document.createElement('tr');
       tr.className = 'fade-in';
+      const typeBadge = trade.type === 'long'
+        ? '<span class="inline-block rounded-full px-2 py-0.5 text-[10px] font-bold border border-accent/40 bg-accent/10 text-accent2">LONG</span>'
+        : '<span class="inline-block rounded-full px-2 py-0.5 text-[10px] font-bold border border-blue-500/40 bg-blue-500/10 text-blue-300">SHORT</span>';
+      const tagsHtml = (trade.tags || []).map((tag) => `<span class="inline-block rounded-full px-2 py-0.5 text-[10px] font-medium border ${tagStyle(tag)} mr-1 mb-1">${escapeHtml(tag)}</span>`).join('');
+      const chartHtml = isValidHttpUrl(trade.chartUrl)
+        ? `<a href="${escapeHtml(trade.chartUrl)}" target="_blank" rel="noopener noreferrer" class="text-accent2 hover:underline text-xs">📈 Ver</a>`
+        : '';
       tr.innerHTML = `
-        <td class="py-3 pr-3 text-gray-300 whitespace-nowrap">${t.date}</td>
-        <td class="py-3 pr-3 text-gray-300">${escapeHtml(t.pair)}</td>
-        <td class="py-3 pr-3 font-semibold ${colorFor(t.pnl)}">${t.pnl >= 0 ? '+' : ''}${fmtUsd(t.pnl)}</td>
-        <td class="py-3 pr-3 ${colorFor(t.pnl)}">${t.percent >= 0 ? '+' : ''}${fmtPct(t.percent)}</td>
-        <td class="py-3 pr-3 text-gray-500 max-w-xs truncate" title="${escapeHtml(t.notes || '')}">${escapeHtml(t.notes || '—')}</td>
-        <td class="py-3 pr-3">${violated ? '<span class="inline-flex items-center gap-1 rounded-full border border-bad/40 bg-bad/10 text-bad text-[10px] font-semibold px-2 py-1">⚠ &gt;5% pérdida</span>' : ''}</td>
-        <td class="py-3 pl-3 text-right">
-          <button data-id="${t.id}" class="delete-btn text-gray-500 hover:text-bad text-xs font-medium px-2 py-1 rounded-lg hover:bg-bad/10">
-            Borrar
-          </button>
+        <td class="py-2.5 px-3 text-gray-300 whitespace-nowrap">${escapeHtml(trade.time)}</td>
+        <td class="py-2.5 px-3">${typeBadge}</td>
+        <td class="py-2.5 px-3 font-semibold ${colorFor(trade.pnl)}">${signedUsd(trade.pnl)}</td>
+        <td class="py-2.5 px-3 text-gray-400">${trade.pips != null && trade.pips !== '' ? trade.pips : '—'}</td>
+        <td class="py-2.5 px-3">${tagsHtml || '<span class="text-gray-600 text-xs">—</span>'}</td>
+        <td class="py-2.5 px-3">${chartHtml}</td>
+        <td class="py-2.5 px-3 text-right whitespace-nowrap">
+          <button data-id="${trade.id}" class="edit-trade-btn text-gray-500 hover:text-accent2 text-xs font-medium px-2 py-1 rounded-lg hover:bg-accent/10">Editar</button>
+          <button data-id="${trade.id}" class="delete-trade-btn text-gray-500 hover:text-bad text-xs font-medium px-2 py-1 rounded-lg hover:bg-bad/10">Borrar</button>
         </td>
       `;
       body.appendChild(tr);
     });
 
-    body.querySelectorAll('.delete-btn').forEach((btn) => {
+    body.querySelectorAll('.delete-trade-btn').forEach((btn) => {
       btn.addEventListener('click', () => {
-        const id = btn.getAttribute('data-id');
-        trades = trades.filter((t) => String(t.id) !== id);
-        recalcCapitalBefore();
+        if (!confirm('¿Borrar esta operación?')) return;
+        deleteTrade(selectedDate, btn.getAttribute('data-id'));
         save();
         renderAll();
+        if (!getDay(selectedDate)) { renderDayModal(); }
+      });
+    });
+
+    body.querySelectorAll('.edit-trade-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const trade = day.trades.find((t) => t.id === btn.getAttribute('data-id'));
+        if (!trade) return;
+        editingTradeId = trade.id;
+        $('tradeTime').value = trade.time;
+        $('tradePnl').value = trade.pnl;
+        $('tradePips').value = trade.pips != null ? trade.pips : '';
+        $('tradeChartUrl').value = trade.chartUrl || '';
+        formTags = [...(trade.tags || [])];
+        setFormType(trade.type);
+        renderTagChips();
+        $('tradeFormTitle').textContent = 'Editar operación';
+        $('tradeFormSubmitLabel').textContent = 'Guardar Cambios';
+        $('cancelEditBtn').classList.remove('hidden');
+        $('tradeForm').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       });
     });
   }
 
-  function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-  }
-
-  function renderAll() {
-    renderStats();
-    renderDashboard();
-    renderHistory();
-    renderChart();
-  }
-
-  function updatePercentPreview() {
-    const pnl = parseFloat($('inputPnl').value);
-    const cap = currentCapital();
-    if (!isNaN(pnl) && cap > 0) {
-      $('inputPercent').value = `${((pnl / cap) * 100).toFixed(2)}%`;
-    } else {
-      $('inputPercent').value = '';
-    }
-  }
-
-  // Init capital input
-  $('initialCapitalInput').value = initialCapital || '';
+  // ---------- events ----------
   $('saveCapitalBtn').addEventListener('click', () => {
     const val = parseFloat($('initialCapitalInput').value);
     if (isNaN(val) || val < 0) {
@@ -441,46 +768,122 @@
     }
     $('initialCapitalInput').classList.remove('border-bad');
     initialCapital = val;
-    recalcCapitalBefore();
     save();
     renderAll();
   });
 
-  $('inputPnl').addEventListener('input', updatePercentPreview);
+  $('prevMonthBtn').addEventListener('click', () => {
+    viewMonth--; if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+    renderMonthHeader(); renderCalendar(); renderWeeklyBreakdown();
+  });
+  $('nextMonthBtn').addEventListener('click', () => {
+    viewMonth++; if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+    renderMonthHeader(); renderCalendar(); renderWeeklyBreakdown();
+  });
+  $('todayBtn').addEventListener('click', () => {
+    viewYear = today.getFullYear(); viewMonth = today.getMonth();
+    renderMonthHeader(); renderCalendar(); renderWeeklyBreakdown();
+  });
 
-  $('entryForm').addEventListener('submit', (e) => {
+  $('weeklyToggleBtn').addEventListener('click', () => {
+    const box = $('weeklyBreakdown');
+    const icon = $('weeklyToggleIcon');
+    const hidden = box.classList.toggle('hidden');
+    icon.style.transform = hidden ? 'rotate(0deg)' : 'rotate(90deg)';
+  });
+
+  $('closeModalBtn').addEventListener('click', closeDayModal);
+  $('dayModal').addEventListener('click', (e) => { if (e.target.id === 'dayModal') closeDayModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('dayModal').classList.contains('hidden')) closeDayModal(); });
+
+  document.querySelectorAll('.type-btn').forEach((btn) => {
+    btn.addEventListener('click', () => setFormType(btn.getAttribute('data-type')));
+  });
+
+  $('cancelEditBtn').addEventListener('click', resetTradeForm);
+
+  $('deleteDayBtn').addEventListener('click', () => {
+    if (!confirm('¿Eliminar todas las operaciones de este día?')) return;
+    deleteDayByDate(selectedDate);
+    save();
+    closeDayModal();
+    renderAll();
+  });
+
+  $('modalPairInput').addEventListener('change', () => {
+    const pairVal = $('modalPairInput').value.trim() || 'EUR/USD';
+    if (getDay(selectedDate)) {
+      getDay(selectedDate).pair = pairVal;
+      save();
+    }
+  });
+
+  $('tradeForm').addEventListener('submit', (e) => {
     e.preventDefault();
-    const date = $('inputDate').value;
-    const pair = $('inputPair').value.trim() || 'EUR/USD';
-    const pnl = parseFloat($('inputPnl').value);
-    const notes = $('inputNotes').value.trim();
+    const time = $('tradeTime').value;
+    const pnl = parseFloat($('tradePnl').value);
+    const pipsRaw = $('tradePips').value;
+    const pips = pipsRaw === '' ? null : parseFloat(pipsRaw);
+    const chartUrl = $('tradeChartUrl').value.trim();
+    if (!time || isNaN(pnl)) return;
 
-    if (!date || isNaN(pnl)) return;
+    const pair = $('modalPairInput').value.trim() || 'EUR/USD';
+    const day = getOrCreateDay(selectedDate, pair);
 
-    trades.push({
-      id: Date.now() + Math.random().toString(16).slice(2),
-      date,
-      pair,
-      pnl,
-      notes,
-      capitalBefore: 0,
-      percent: 0,
-    });
+    if (editingTradeId) {
+      const trade = day.trades.find((t) => t.id === editingTradeId);
+      if (trade) {
+        trade.time = time; trade.type = formType; trade.pnl = pnl;
+        trade.pips = pips; trade.chartUrl = chartUrl; trade.tags = [...formTags];
+      }
+    } else {
+      day.trades.push({ id: uid(), time, type: formType, pnl, pips, chartUrl, tags: [...formTags] });
+    }
 
-    trades.sort((a, b) => a.date.localeCompare(b.date) || 0);
-    recalcCapitalBefore();
     save();
+    resetTradeForm();
     renderAll();
-
-    e.target.reset();
-    $('inputPair').value = 'EUR/USD';
-    $('inputPercent').value = '';
+    renderDayModal();
   });
 
-  // Default date to today
-  $('inputDate').value = new Date().toISOString().slice(0, 10);
+  $('exportBtn').addEventListener('click', () => {
+    const payload = { initialCapital, days, exportedAt: new Date().toISOString() };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `trading-journal-${toDateStr(new Date())}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
 
-  recalcCapitalBefore();
+  $('importBtn').addEventListener('click', () => $('importFile').click());
+  $('importFile').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        if (!Array.isArray(data.days)) throw new Error('Formato inválido');
+        if (!confirm('Esto reemplazará todos tus datos actuales. ¿Continuar?')) return;
+        initialCapital = parseFloat(data.initialCapital) || 0;
+        days = data.days;
+        save();
+        renderAll();
+      } catch (err) {
+        alert('No se pudo importar el archivo: formato JSON inválido.');
+      } finally {
+        e.target.value = '';
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  // ---------- init ----------
+  $('initialCapitalInput').value = initialCapital || '';
+  renderTagChips();
+  setFormType('long');
   renderAll();
 })();
 </script>
